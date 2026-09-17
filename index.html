@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pritunl Sandbox Deployer</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="hdr">
+      <div class="hdr-mark">›_</div>
+      <div>
+        <h1>Pritunl Sandbox Deployer</h1>
+        <p class="hdr-sub">us-east-1 · disposable AWS sandbox · nothing persisted in your browser</p>
+      </div>
+    </header>
+
+    <section id="panel-form" class="panel">
+      <div class="field">
+        <label for="accessKeyId">AWS Access Key ID</label>
+        <input id="accessKeyId" type="text" autocomplete="off" spellcheck="false" placeholder="AKIA..." />
+      </div>
+      <div class="field">
+        <label for="secretAccessKey">AWS Secret Access Key</label>
+        <input id="secretAccessKey" type="password" autocomplete="off" spellcheck="false" placeholder="••••••••••••••••••••" />
+      </div>
+      <div class="field">
+        <label for="sessionToken">AWS Session Token <span class="opt">(only if using temporary/STS credentials)</span></label>
+        <input id="sessionToken" type="password" autocomplete="off" spellcheck="false" placeholder="optional" />
+      </div>
+
+      <button id="deployBtn" class="btn-primary">Deploy Pritunl</button>
+      <p id="formError" class="error hidden"></p>
+    </section>
+
+    <section id="panel-progress" class="panel hidden">
+      <h2>Deployment progress</h2>
+      <ol id="progressList" class="progress-list"></ol>
+
+      <div id="instanceBox" class="kv hidden">
+        <div><span>Instance</span><code id="instanceId">—</code></div>
+        <div><span>Public IP</span><code id="publicIp">—</code></div>
+      </div>
+
+      <p id="waitNote" class="muted hidden">
+        Waiting for cloud-init to finish inside the instance. This is checked by reading the
+        instance's console output, which AWS only refreshes every 1–5 minutes — this step is
+        normally the slowest part. Feel free to leave this tab open.
+      </p>
+
+      <button id="refreshBtn" class="btn-secondary hidden">Check status now</button>
+      <button id="toggleLogBtn" class="btn-link hidden">Show raw console output</button>
+      <pre id="rawLog" class="raw-log hidden"></pre>
+    </section>
+
+    <section id="panel-result" class="panel hidden">
+      <h2>Pritunl Sandbox</h2>
+      <div class="status-ready">Status: <strong>Ready</strong></div>
+
+      <div class="kv">
+        <div><span>Server</span><code>sandbox</code></div>
+        <div><span>Organization</span><code>Sandbox</code></div>
+        <div><span>Public IP</span><code id="resPublicIp">—</code></div>
+        <div><span>Pritunl URL</span><code id="resUrl">—</code></div>
+        <div><span>OpenVPN</span><code>UDP 1194</code></div>
+        <div><span>WireGuard</span><code>UDP 51820</code></div>
+      </div>
+
+      <div id="credsBox" class="kv hidden">
+        <div><span>Admin username</span><code id="resUser">—</code></div>
+        <div><span>Admin password</span><code id="resPass">—</code></div>
+      </div>
+      <p class="muted small">Generated on the instance during setup — not stored anywhere except that instance's console output.</p>
+
+      <button id="openBtn" class="btn-primary">Open Pritunl</button>
+      <p class="muted small">
+        Pritunl uses a self-signed certificate by default, so your browser will show a security
+        warning the first time — that's expected for this sandbox.
+      </p>
+    </section>
+
+    <footer class="ftr">
+      Credentials are held in memory for this page load only and are never written to storage,
+      cookies, or any server. Closing or reloading the tab clears them.
+    </footer>
+  </div>
+
+  <div id="fatalError" class="error hidden" style="margin:16px;padding:12px;border:1px solid #c00;border-radius:6px;white-space:pre-wrap;font-family:monospace;"></div>
+
+  <script>
+    // Surface any error that would otherwise fail silently (including a failed
+    // module load), so "nothing happens" always turns into a visible message.
+    function showFatal(msg) {
+      var box = document.getElementById("fatalError");
+      if (!box) return;
+      box.classList.remove("hidden");
+      box.textContent = "Script error:\n" + msg;
+    }
+    window.addEventListener("error", function (e) {
+      showFatal((e.message || e.error || "unknown") + (e.filename ? "\n" + e.filename + ":" + e.lineno : ""));
+    });
+    window.addEventListener("unhandledrejection", function (e) {
+      showFatal("Unhandled promise rejection:\n" + (e.reason && e.reason.stack ? e.reason.stack : e.reason));
+    });
+  </script>
+  <script type="module" src="app.js"></script>
+  <script type="module">
+    // If the module above failed to load, this second module will also fail
+    // the same way. If it succeeds, confirm the button handler is wired.
+    window.addEventListener("load", function () {
+      var btn = document.getElementById("deployBtn");
+      if (btn && !btn.dataset.wired) {
+        // The main module attaches its own listener; this only warns if the
+        // module never executed (e.g. blocked CDN import).
+        setTimeout(function () {
+          if (!window.__deployerReady) {
+            showFatal(
+              "app.js did not finish loading. This usually means the AWS SDK " +
+              "imports from esm.sh were blocked (network/proxy/adblock) or the " +
+              "page was opened as a file:// URL. Open http://localhost:8000/ and " +
+              "check the Network tab for blocked requests to esm.sh."
+            );
+          }
+        }, 4000);
+      }
+    });
+  </script>
+</body>
+</html>
